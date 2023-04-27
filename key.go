@@ -3,19 +3,10 @@ package hdwallet
 import (
 	"crypto/ecdsa"
 	"encoding/hex"
-	"fmt"
-
-	"github.com/binance-chain/go-sdk/common/bech32"
-	"github.com/binance-chain/go-sdk/common/types"
-	"github.com/btcsuite/btcd/btcec"
+	"github.com/btcsuite/btcd/btcec/v2"
+	"github.com/btcsuite/btcd/btcutil"
+	"github.com/btcsuite/btcd/btcutil/hdkeychain"
 	"github.com/btcsuite/btcd/txscript"
-	"github.com/btcsuite/btcutil"
-	"github.com/btcsuite/btcutil/hdkeychain"
-	"github.com/cpacia/bchutil"
-	filaddr "github.com/filecoin-project/go-address"
-	"github.com/myxtype/filecoin-client/local"
-	filtypes "github.com/myxtype/filecoin-client/types"
-	"github.com/tendermint/tendermint/crypto/secp256k1"
 )
 
 // Key struct
@@ -179,23 +170,6 @@ func (k *Key) AddressBTC() (string, error) {
 	return address.EncodeAddress(), nil
 }
 
-// AddressBCH generate public key to bch style address
-func (k *Key) AddressBCH() (string, error) {
-	address, err := k.Extended.Address(k.Opt.Params)
-	if err != nil {
-		return "", err
-	}
-
-	addr, err := bchutil.NewCashAddressPubKeyHash(address.ScriptAddress(), k.Opt.Params)
-	if err != nil {
-		return "", err
-	}
-
-	data := addr.EncodeAddress()
-	prefix := bchutil.Prefixes[k.Opt.Params.Name]
-	return prefix + ":" + data, nil
-}
-
 // AddressP2WPKH generate public key to p2wpkh style address
 func (k *Key) AddressP2WPKH() (string, error) {
 	pubHash, err := k.PublicHash()
@@ -234,57 +208,4 @@ func (k *Key) AddressP2WPKHInP2SH() (string, error) {
 	}
 
 	return addr1.EncodeAddress(), nil
-}
-
-// AddressBNB 生成bnb地址
-// network mainnet主网地址 testnet测试网地址
-func (k *Key) AddressBNB(network string) (string, error) {
-	hrp := "bnb"
-
-	switch network {
-	case MAINNET:
-		hrp = "bnb"
-	case TESTNET:
-		hrp = "tbnb"
-	}
-
-	priBytes, err := hex.DecodeString(k.PrivateHex())
-	if err != nil {
-		return "", err
-	}
-
-	if len(priBytes) != 32 {
-		return "", fmt.Errorf("Len of Keybytes is not equal to 32 ")
-	}
-
-	var keyBytesArray [32]byte
-	copy(keyBytesArray[:], priBytes[:32])
-	priKey := secp256k1.PrivKeySecp256k1(keyBytesArray)
-	addr := types.AccAddress(priKey.PubKey().Address())
-
-	bech32Addr, err := bech32.ConvertAndEncode(hrp, addr.Bytes())
-	if err != nil {
-		return "", err
-	}
-
-	return bech32Addr, nil
-}
-
-func (k *Key) AddressFIL(network string) (string, error) {
-
-	switch network {
-	case MAINNET:
-		filaddr.CurrentNetwork = filaddr.Mainnet
-	case TESTNET:
-		filaddr.CurrentNetwork = filaddr.Testnet
-	default:
-		filaddr.CurrentNetwork = filaddr.Mainnet
-	}
-
-	addr, err := local.WalletPrivateToAddress(local.ActSigType(filtypes.KTSecp256k1), k.Private.Serialize())
-	if err != nil {
-		return "", err
-	}
-
-	return addr.String(), nil
 }
